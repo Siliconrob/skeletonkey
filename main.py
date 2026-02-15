@@ -7,8 +7,7 @@ from typing import Any
 import snowflake.connector as sc
 from rich.console import Console
 
-from RecordTypes.NewUserToken import NewUserToken
-from RecordTypes.User import User
+import RecordTypes
 
 console = Console()
 
@@ -41,14 +40,14 @@ def certification_action():
         with (sc.connect(**conn_params) as conn, conn.cursor() as cursor):
             cursor.execute(f"SHOW USERS LIKE '{os.getenv('SNOWFLAKE_USER')}'")
             current_data = cursor.fetchone()
-            user_info = User(*current_data)
+            user_info = RecordTypes.User(*current_data)
             if user_info.has_pat:
                 user_name = os.getenv('SNOWFLAKE_USER')
                 new_token_name = f"{user_name}_token_{uuid.uuid4().hex}"
                 add_new_pat = f"ALTER USER IF EXISTS {user_name} ADD PROGRAMMATIC ACCESS TOKEN {new_token_name} DAYS_TO_EXPIRY = 30 COMMENT = 'New token for {user_name}';"
                 cursor.execute(add_new_pat)
                 current_data = cursor.fetchone()
-                new_token = NewUserToken(*current_data)
+                new_token = RecordTypes.NewUserToken(*current_data)
                 console.print(new_token)
             console.print(user_info)
         return current_data
