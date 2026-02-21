@@ -4,6 +4,7 @@ import os
 import tempfile
 import uuid
 from collections import deque
+from dataclasses import dataclass
 from functools import wraps
 from typing import Any, TypeVar, Callable, Tuple
 
@@ -21,6 +22,11 @@ from dotenv import load_dotenv
 load_dotenv()
 
 T = TypeVar("T")
+
+
+def get_connection_params() -> dict[str, str | None]:
+    return dict(account=os.getenv("SNOWFLAKE_ACCOUNT"),
+     user=os.getenv("SNOWFLAKE_USER"),
 
 
 def result_set(cursor: SnowflakeCursor, cmd: str, init_fn: Callable[[Any], T]) -> deque[T]:
@@ -47,23 +53,36 @@ def pat_action():
     return current_data
 
 
-def with_public_key(private_key_name: str) -> Callable[..., Any]:
-    key_value = os.getenv(private_key_name).encode('utf-8')  # type: ignore[union-attr]
+def public_key_cursor(connection_options: dict[str, str | None]) -> Callable[..., Any]:
+    private_key = connection_options.get("private_key")
+    account = connection_options.get("account")
+    user = connection_options.get("user")
+
+    if private_key is None:
+        raise ValueError("Private key is not provided")
+    if account is None:
+        raise ValueError("Account is not provided")
+    if user is None:
+        raise ValueError("User is not provided")
+
     def inner_decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs) -> Callable[..., Any]:
             with (tempfile.TemporaryDirectory() as tmp_dir, open(os.path.join(tmp_dir, uuid.uuid4().hex),
                                                                  "wb+") as tmp_key_file):
-                tmp_key_file.write(key_value)
+                tmp_key_file.write(private_key.encode('utf-8'))
                 tmp_key_file.flush()
-                conn_params = connection_params(tmp_key_file.name)
+                conn_params = dict(account=account,
+                                   user=user,
+                                   authenticator='SNOWFLAKE_JWT',
+                                   private_key_file=tmp_key_file.name)
                 with (sc.connect(**conn_params) as conn, conn.cursor() as cursor):
                     return func(cursor, *args, **kwargs)
         return wrapper
     return inner_decorator
 
 
-@with_public_key("SNOWFLAKE_PRIVATE_KEY")
+@public_key_cursor(connection_options=get_connection_params())
 def get_user(cursor: SnowflakeCursor, cmd: str) -> User:
     users = result_set(cursor, cmd, lambda z: User(*z))
     return users.popleft()
@@ -89,7 +108,7 @@ def certification_action() -> Tuple[User, NewUserToken]:
     return user_info, token_info  # type: ignore[return-value]
 
 
-def connection_params(tmp_key_file_name: str) -> dict[str, str | None | Any]:
+def connection_params(tmp_key_file_name: str) -> dict[str, str | None]:
     return dict(account=os.getenv("SNOWFLAKE_ACCOUNT"),
                 user=os.getenv("SNOWFLAKE_USER"),
                 authenticator='SNOWFLAKE_JWT',
