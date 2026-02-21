@@ -57,18 +57,17 @@ def with_public_key(private_key_name: str) -> Callable[..., Any]:
                 tmp_key_file.write(key_value)
                 tmp_key_file.flush()
                 conn_params = connection_params(tmp_key_file.name)
-                result = func(conn_params, *args, **kwargs)
-                return result
+                with (sc.connect(**conn_params) as conn, conn.cursor() as cursor):
+                    return func(cursor, *args, **kwargs)
         return wrapper
     return inner_decorator
 
 
 @with_public_key("SNOWFLAKE_PRIVATE_KEY")
-def get_user(conn_params: dict[str, str | None | Any], cmd: str) -> User:
-    user_info = None
-    with (sc.connect(**conn_params) as conn, conn.cursor() as cursor):
-        user_info = result_set(cursor, cmd, lambda z: User(*z)).popleft()
-    return user_info
+def get_user(cursor: SnowflakeCursor, cmd: str) -> User:
+    mapping_fn = lambda z: User(*z)
+    users = result_set(cursor, cmd, mapping_fn)
+    return users.popleft()
 
 
 def certification_action() -> Tuple[User, NewUserToken]:
