@@ -65,8 +65,7 @@ def with_public_key(private_key_name: str) -> Callable[..., Any]:
 
 @with_public_key("SNOWFLAKE_PRIVATE_KEY")
 def get_user(cursor: SnowflakeCursor, cmd: str) -> User:
-    mapping_fn = lambda z: User(*z)
-    users = result_set(cursor, cmd, mapping_fn)
+    users = result_set(cursor, cmd, lambda z: User(*z))
     return users.popleft()
 
 
