@@ -1,9 +1,11 @@
 import asyncio
+import functools
 import os
 import tempfile
 import uuid
 from collections import deque
-from typing import Any, TypeVar, List, Callable, Tuple
+from functools import wraps
+from typing import Any, TypeVar, Callable, Tuple
 
 import snowflake.connector as sc
 from rich.console import Console
@@ -22,7 +24,7 @@ T = TypeVar("T")
 
 
 def result_set(cursor: SnowflakeCursor, cmd: str, init_fn: Callable[[Any], T]) -> deque[T]:
-    result_list = deque()
+    result_list = deque()  # type: ignore[var-annotated]
     cursor.execute(cmd)
     for row in cursor:
         result_list.append(init_fn(row))
@@ -45,13 +47,37 @@ def pat_action():
     return current_data
 
 
+def with_public_key(private_key_name: str) -> Callable[..., Any]:
+    key_value = os.getenv(private_key_name).encode('utf-8')  # type: ignore[union-attr]
+    def inner_decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs) -> Callable[..., Any]:
+            with (tempfile.TemporaryDirectory() as tmp_dir, open(os.path.join(tmp_dir, uuid.uuid4().hex),
+                                                                 "wb+") as tmp_key_file):
+                tmp_key_file.write(key_value)
+                tmp_key_file.flush()
+                conn_params = connection_params(tmp_key_file.name)
+                result = func(conn_params, *args, **kwargs)
+                return result
+        return wrapper
+    return inner_decorator
+
+
+@with_public_key("SNOWFLAKE_PRIVATE_KEY")
+def get_user(conn_params: dict[str, str | None | Any], cmd: str) -> User:
+    user_info = None
+    with (sc.connect(**conn_params) as conn, conn.cursor() as cursor):
+        user_info = result_set(cursor, cmd, lambda z: User(*z)).popleft()
+    return user_info
+
+
 def certification_action() -> Tuple[User, NewUserToken]:
 
     user_info = None
     token_info = None
 
     with (tempfile.TemporaryDirectory() as tmp_dir, open(os.path.join(tmp_dir, uuid.uuid4().hex), "wb+") as tmp_key_file):
-        tmp_key_file.write(os.getenv("SNOWFLAKE_PRIVATE_KEY").encode('utf-8'))
+        tmp_key_file.write(os.getenv("SNOWFLAKE_PRIVATE_KEY").encode('utf-8'))  # type: ignore[union-attr]
         tmp_key_file.flush()
         conn_params = connection_params(tmp_key_file.name)
         with (sc.connect(**conn_params) as conn, conn.cursor() as cursor):
@@ -62,7 +88,7 @@ def certification_action() -> Tuple[User, NewUserToken]:
                 new_token_name = f"{user_name}_token_{uuid.uuid4().hex}"
                 add_new_pat = f"ALTER USER IF EXISTS {user_name} ADD PROGRAMMATIC ACCESS TOKEN {new_token_name} DAYS_TO_EXPIRY = 30 COMMENT = 'New token for {user_name}';"
                 token_info = result_set(cursor, add_new_pat, lambda z: NewUserToken(*z)).popleft()
-        return user_info, token_info
+    return user_info, token_info  # type: ignore[return-value]
 
 
 def connection_params(tmp_key_file_name: str) -> dict[str, str | None | Any]:
@@ -73,8 +99,10 @@ def connection_params(tmp_key_file_name: str) -> dict[str, str | None | Any]:
 
 async def main() -> None:
     # pat_action()
-    results = certification_action()
-    console.print(results)
+    # results = certification_action()
+    # console.print(results)
+    user = get_user(f"SHOW USERS LIKE '{os.getenv('SNOWFLAKE_USER')}'")
+    console.print(user)
 
 
 if __name__ == '__main__':

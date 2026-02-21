@@ -6,6 +6,7 @@ requires-python = ">=3.14"
 dependencies = [
     "camel-converter>=5.0.0",
     "httpx>=0.28.1",
+    "mypy>=1.11",
     "python-dotenv>=1.2.1",
     "rich>=14.3.2",
     "snowflake-connector-python>=4.3.0",
