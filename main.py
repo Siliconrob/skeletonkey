@@ -27,6 +27,7 @@ T = TypeVar("T")
 def get_connection_params() -> dict[str, str | None]:
     return dict(account=os.getenv("SNOWFLAKE_ACCOUNT"),
      user=os.getenv("SNOWFLAKE_USER"),
+     private_key=os.getenv("SNOWFLAKE_PRIVATE_KEY"))
 
 
 def result_set(cursor: SnowflakeCursor, cmd: str, init_fn: Callable[[Any], T]) -> deque[T]:
