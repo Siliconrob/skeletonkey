@@ -10,6 +10,7 @@ from typing import Any, TypeVar, Callable, Tuple
 
 import snowflake.connector as sc
 from rich.console import Console
+from snowflake.connector import SnowflakeConnection
 from snowflake.connector.cursor import SnowflakeCursor
 
 from RecordTypes.NewUserToken import NewUserToken
@@ -83,6 +84,35 @@ def public_key_cursor(connection_options: dict[str, str | None]) -> Callable[...
     return inner_decorator
 
 
+def public_key_connection(connection_options: dict[str, str | None]) -> SnowflakeConnection:
+    private_key = connection_options.get("private_key")
+    account = connection_options.get("account")
+    user = connection_options.get("user")
+
+    if private_key is None:
+        raise ValueError("Private key is not provided")
+    if account is None:
+        raise ValueError("Account is not provided")
+    if user is None:
+        raise ValueError("User is not provided")
+
+    with (tempfile.TemporaryDirectory() as tmp_dir, open(os.path.join(tmp_dir, uuid.uuid4().hex),
+                                                         "wb+") as tmp_key_file):
+        tmp_key_file.write(private_key.encode('utf-8'))
+        tmp_key_file.flush()
+        conn_params = dict(account=account,
+                           user=user,
+                           authenticator='SNOWFLAKE_JWT',
+                           private_key_file=tmp_key_file.name)
+        return sc.connect(**conn_params)
+
+def run_cmds(cmd: str) -> User:
+    with (public_key_connection(get_connection_params()) as conn, conn.cursor() as cursor):
+        all_users = result_set(cursor, "SHOW USERS", lambda z: User(*z))
+        console.print(all_users)
+        return all_users.popleft()
+
+
 @public_key_cursor(connection_options=get_connection_params())
 def get_user(cursor: SnowflakeCursor, cmd: str) -> User:
     users = result_set(cursor, cmd, lambda z: User(*z))
@@ -119,8 +149,11 @@ async def main() -> None:
     # pat_action()
     # results = certification_action()
     # console.print(results)
-    user = get_user(f"SHOW USERS LIKE '{os.getenv('SNOWFLAKE_USER')}'")
+    find_user = f"SHOW USERS LIKE '{os.getenv('SNOWFLAKE_USER')}'"
+    user = get_user(find_user)
     console.print(user)
+    user2 = run_cmds(find_user)
+    console.print(user2)
 
 
 if __name__ == '__main__':
