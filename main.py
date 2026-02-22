@@ -85,20 +85,28 @@ def public_key_cursor(connection_options: dict[str, str | None]) -> Callable[...
 
 
 def public_key_connection(connection_options: dict[str, str | None]) -> SnowflakeConnection:
+
     private_key = connection_options.get("private_key")
     account = connection_options.get("account")
     user = connection_options.get("user")
 
-    if private_key is None:
-        raise ValueError("Private key is not provided")
-    if account is None:
-        raise ValueError("Account is not provided")
-    if user is None:
-        raise ValueError("User is not provided")
+    def validate_input(input_text: str | None) -> bool:
+        return input_text is not None and len(input_text.strip()) > 0
+
+    invalid_params = []
+    for k,v in dict(
+        private_key=validate_input(private_key),
+        account=validate_input(account),
+        user=validate_input(user)
+    ).items():
+        if not v:
+            invalid_params.append(f"No value for {k}")
+    if len(invalid_params) > 0:
+        raise ValueError(f"Missing connection parameters: {', '.join(invalid_params)}")
 
     with (tempfile.TemporaryDirectory() as tmp_dir, open(os.path.join(tmp_dir, uuid.uuid4().hex),
                                                          "wb+") as tmp_key_file):
-        tmp_key_file.write(private_key.encode('utf-8'))
+        tmp_key_file.write(private_key.encode('utf-8'))  # type: ignore[union-attr]
         tmp_key_file.flush()
         conn_params = dict(account=account,
                            user=user,
