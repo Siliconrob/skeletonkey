@@ -1,11 +1,13 @@
 import asyncio
 import functools
 import os
+import subprocess
 import tempfile
 import uuid
 from collections import deque
 from dataclasses import dataclass
 from functools import wraps
+from io import TextIOWrapper
 from typing import Any, TypeVar, Callable, Tuple
 
 import snowflake.connector as sc
@@ -25,6 +27,7 @@ load_dotenv()
 T = TypeVar("T")
 
 
+
 def get_connection_params() -> dict[str, str | None]:
     return dict(account=os.getenv("SNOWFLAKE_ACCOUNT"),
      user=os.getenv("SNOWFLAKE_USER"),
@@ -37,6 +40,40 @@ def result_set(cursor: SnowflakeCursor, cmd: str, init_fn: Callable[[Any], T]) -
     for row in cursor:
         result_list.append(init_fn(row))
     return result_list
+
+
+PEM_KEY_LENGTH = 4096
+
+
+@dataclass
+class Keys:
+    private: str | None = None
+    public: str | None = None
+
+
+def create_public_private_keys(key_length: int = PEM_KEY_LENGTH) -> Keys:
+    key_pair = Keys()
+
+    if os.name == 'nt': # No openssl on Windows by default
+        return key_pair
+
+    key_file_base_name = "rsa_key"
+    private_key_file_name = f"{key_file_base_name}.p8"
+    public_key_file_name = f"{key_file_base_name}.pub"
+
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        os.chdir(tmp_dir)
+        ps1 = subprocess.run(["openssl", "genrsa", f"{key_length}"], universal_newlines=True, stdout=subprocess.PIPE)
+        ps2 = subprocess.run(["openssl", "pkcs8", "-topk8", "-inform", "PEM", "-out", f"{private_key_file_name}", "-nocrypt"], input=ps1.stdout, universal_newlines=True, stdout=subprocess.PIPE)
+        ps3 = subprocess.run(["openssl", "rsa", "-in", f"{private_key_file_name}", "-pubout", "-out", f"{public_key_file_name}"], universal_newlines=True, stdout=subprocess.PIPE)
+        key_pair.private = extract_file_contents(os.path.join(tmp_dir, f'{private_key_file_name}'))
+        key_pair.public = extract_file_contents(os.path.join(tmp_dir, f'{public_key_file_name}'))
+    return key_pair
+
+
+def extract_file_contents(file_path: str, read_lines: Callable[[TextIOWrapper], list[str]] = lambda z: z.readlines()) -> str:
+    with open(file_path) as f:
+        return "".join(x.strip().replace('\n', '') for x in read_lines(f))
 
 
 def create_connection() -> sc.connection.SnowflakeConnection:
@@ -157,12 +194,12 @@ async def main() -> None:
     # pat_action()
     # results = certification_action()
     # console.print(results)
-    find_user = f"SHOW USERS LIKE '{os.getenv('SNOWFLAKE_USER')}'"
-    user = get_user(find_user)
-    console.print(user)
-    user2 = run_cmds(find_user)
-    console.print(user2)
-
+    # find_user = f"SHOW USERS LIKE '{os.getenv('SNOWFLAKE_USER')}'"
+    # user = get_user(find_user)
+    # console.print(user)
+    # user2 = run_cmds(find_user)
+    # console.print(user2)
+    create_public_private_keys()
 
 if __name__ == '__main__':
     asyncio.run(main())
