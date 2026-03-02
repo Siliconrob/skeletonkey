@@ -3,6 +3,7 @@ import functools
 import os
 import subprocess
 import tempfile
+import time
 import uuid
 from collections import deque
 from dataclasses import dataclass
@@ -152,7 +153,14 @@ def public_key_connection(connection_options: dict[str, str | None]) -> Snowflak
         return sc.connect(**conn_params)
 
 def run_cmds(cmd: str) -> User:
-    with (public_key_connection(get_connection_params()) as conn, conn.cursor() as cursor):
+    # with (public_key_connection(get_connection_params()) as conn, conn.cursor() as cursor):
+    conn = public_key_connection(get_connection_params())
+    # with conn.cursor() as cursor:
+    #     # time.sleep(150)
+    #     cursor.execute("CALL SYSTEM$WAIT(1, 'MINUTES');")
+
+    console.print(conn)
+    with conn.cursor() as cursor:
         all_users = result_set(cursor, "SHOW USERS", lambda z: User(*z))
         console.print(all_users)
         return all_users.popleft()
@@ -194,12 +202,12 @@ async def main() -> None:
     # pat_action()
     # results = certification_action()
     # console.print(results)
-    # find_user = f"SHOW USERS LIKE '{os.getenv('SNOWFLAKE_USER')}'"
+    find_user = f"SHOW USERS LIKE '{os.getenv('SNOWFLAKE_USER')}'"
     # user = get_user(find_user)
     # console.print(user)
-    # user2 = run_cmds(find_user)
-    # console.print(user2)
-    create_public_private_keys()
+    user2 = run_cmds(find_user)
+    console.print(user2)
+    # create_public_private_keys()
 
 if __name__ == '__main__':
     asyncio.run(main())
