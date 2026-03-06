@@ -6,9 +6,12 @@ import tempfile
 import time
 import uuid
 from collections import deque
+from compression import zstd
 from dataclasses import dataclass
 from functools import wraps
 from io import TextIOWrapper
+from random import choice
+from string import ascii_uppercase
 from typing import Any, TypeVar, Callable, Tuple
 
 import snowflake.connector as sc
@@ -18,6 +21,8 @@ from snowflake.connector.cursor import SnowflakeCursor
 
 from RecordTypes.NewUserToken import NewUserToken
 from RecordTypes.User import User
+
+
 
 console = Console()
 
@@ -56,6 +61,7 @@ def create_public_private_keys(key_length: int = PEM_KEY_LENGTH) -> Keys:
     key_pair = Keys()
 
     if os.name == 'nt': # No openssl on Windows by default
+        key_pair.private = ''.join(choice(ascii_uppercase) for i in range(PEM_KEY_LENGTH))
         return key_pair
 
     key_file_base_name = "rsa_key"
@@ -198,7 +204,19 @@ def connection_params(tmp_key_file_name: str) -> dict[str, str | None]:
                 authenticator='SNOWFLAKE_JWT',
                 private_key_file=tmp_key_file_name)
 
+
+def compress() -> None:
+    new_keys = create_public_private_keys()
+
+    a = zstd.compress(new_keys.private.encode('utf-8'))  # type: ignore[union-attr]
+    console.print(f'{len(a)=}')
+
+
+
 async def main() -> None:
+    compress()
+    return
+
     # pat_action()
     # results = certification_action()
     # console.print(results)
