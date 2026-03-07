@@ -13,6 +13,7 @@ from io import TextIOWrapper
 from random import choice
 from string import ascii_uppercase
 from typing import Any, TypeVar, Callable, Tuple
+from unittest.mock import MagicMock, patch
 
 import snowflake.connector as sc
 from rich.console import Console
@@ -20,6 +21,7 @@ from snowflake.connector import SnowflakeConnection
 from snowflake.connector.cursor import SnowflakeCursor
 
 from RecordTypes.NewUserToken import NewUserToken
+from RecordTypes.TestContext import TestContext
 from RecordTypes.User import User
 
 
@@ -212,9 +214,28 @@ def compress() -> None:
     console.print(f'{len(a)=}')
 
 
+def mocky() -> None:
+    with TestContext({}) as t:
+        help = t.get_helper("normal")
+        console.print(help.echo_cmd())
+        help = t.get_helper("bah")
+        console.print(help.echo_cmd())
+
+    with (patch.object(TestContext, 'get_helper', return_value=MagicMock()) as m,
+          TestContext({}) as t):
+        help_mock = t.get_helper("help_normal")
+        console.print(help_mock.echo_cmd())
+        help_mock = t.get_helper("help_bah")
+        console.print(help_mock.echo_cmd())
+
+
+    console.print(m.call_count)
+
+
 
 async def main() -> None:
-    compress()
+    # compress()
+    mocky()
     return
 
     # pat_action()
