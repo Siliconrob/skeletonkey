@@ -216,10 +216,10 @@ def compress() -> None:
 
 def mocky() -> None:
     with TestContext({}) as t:
-        help = t.get_helper("normal")
-        console.print(help.echo_cmd())
-        help = t.get_helper("bah")
-        console.print(help.echo_cmd())
+        helps = t.get_helper("normal")
+        console.print(helps.echo_cmd())
+        helps = t.get_helper("bah")
+        console.print(helps.echo_cmd())
 
     with (patch.object(TestContext, 'get_helper', return_value=MagicMock()) as m,
           TestContext({}) as t):
