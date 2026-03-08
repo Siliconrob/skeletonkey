@@ -231,7 +231,7 @@ def mocky() -> None:
     with (patch.object(TestContext, '_create_dbx_client', return_value=fake_client) as m,
           TestContext(dbx_options) as t):  # type: ignore[arg-type]
 
-        for item in t.dbx_client.catalogs.list():
+        for item in t.dbx.catalogs.list():
             console.print(item)
 
         help_mock = t.get_helper("help_normal")
