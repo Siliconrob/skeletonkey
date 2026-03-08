@@ -23,6 +23,7 @@ from snowflake.connector.cursor import SnowflakeCursor
 from RecordTypes.NewUserToken import NewUserToken
 from RecordTypes.TestContext import TestContext
 from RecordTypes.User import User
+from databricks.sdk import WorkspaceClient
 
 
 
@@ -215,14 +216,19 @@ def compress() -> None:
 
 
 def mocky() -> None:
-    with TestContext({}) as t:
+
+    dbx_options = dict(host=os.getenv("DBX_HOST"),
+               client_id=os.getenv("DBX_CLIENT_ID"),
+               client_secret=os.getenv("DBX_CLIENT_SECRET"))
+
+    with TestContext(dbx_options) as t:  # type: ignore[arg-type]
         helps = t.get_helper("normal")
         console.print(helps.echo_cmd())
         helps = t.get_helper("bah")
         console.print(helps.echo_cmd())
 
     with (patch.object(TestContext, 'get_helper', return_value=MagicMock()) as m,
-          TestContext({}) as t):
+          TestContext(dbx_options) as t):  # type: ignore[arg-type]
         help_mock = t.get_helper("help_normal")
         console.print(help_mock.echo_cmd())
         help_mock = t.get_helper("help_bah")
@@ -232,10 +238,20 @@ def mocky() -> None:
     console.print(m.call_count)
 
 
+def dbx_connect():
+    dbx = dict(host=os.getenv("DBX_HOST"),
+               client_id=os.getenv("DBX_CLIENT_ID"),
+               client_secret=os.getenv("DBX_CLIENT_SECRET"))
+
+    w = WorkspaceClient(**dbx)
+    for catalog in w.catalogs.list():
+        console.print(catalog)
 
 async def main() -> None:
     # compress()
     mocky()
+    # dbx_connect()
+
     return
 
     # pat_action()

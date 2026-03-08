@@ -5,6 +5,7 @@ description = "Add your description here"
 requires-python = ">=3.14"
 dependencies = [
     "camel-converter>=5.0.0",
+    "databricks-sdk>=0.96.0",
     "httpx>=0.28.1",
     "mypy>=1.11",
     "python-dotenv>=1.2.1",

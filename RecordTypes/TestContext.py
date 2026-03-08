@@ -1,18 +1,28 @@
+from typing import Any
+
+from databricks.sdk import WorkspaceClient
 from rich.console import Console
 
 console = Console()
 
 class Helper:
 
-    def __init__(self, options: dict[str, str]):
+    _options: dict[str, str | Any]
+    _inputs: dict[str, str] = {}
+
+    def __init__(self, options: dict[str,  str | Any]):
         self._options = options
 
     def echo_cmd(self) -> str:
-        return ",".join([f'{k=}{v=}' for k,v in self._options.items()])
+        return ",".join([f'{k=}{v=}' for k,v in self._inputs.items()])
+
+    def dbx_client(self) -> WorkspaceClient:
+        return WorkspaceClient(**self._options)  # type: ignore[arg-type]
+
 
 class TestContext:
 
-    _options: dict[str, str]
+    _options: dict[str, str | Any]
 
     def get_helper(self, new_cmd: str) -> Helper:
         self._options[new_cmd] = new_cmd
