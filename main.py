@@ -227,8 +227,13 @@ def mocky() -> None:
         helps = t.get_helper("bah")
         console.print(helps.echo_cmd())
 
-    with (patch.object(TestContext, 'get_helper', return_value=MagicMock()) as m,
+    fake_client = MagicMock(catalogs=MagicMock(list=MagicMock(return_value=["a", "b", "c"])))
+    with (patch.object(TestContext, '_create_dbx_client', return_value=fake_client) as m,
           TestContext(dbx_options) as t):  # type: ignore[arg-type]
+
+        for item in t.dbx_client.catalogs.list():
+            console.print(item)
+
         help_mock = t.get_helper("help_normal")
         console.print(help_mock.echo_cmd())
         help_mock = t.get_helper("help_bah")

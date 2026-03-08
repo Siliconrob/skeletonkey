@@ -23,10 +23,16 @@ class Helper:
 class TestContext:
 
     _options: dict[str, str | Any]
+    dbx_client: WorkspaceClient | None = None
 
     def get_helper(self, new_cmd: str) -> Helper:
         self._options[new_cmd] = new_cmd
         return Helper(self._options)
+
+    def _create_dbx_client(self, input_options: dict[str, str | Any] | None = None) -> WorkspaceClient:
+        if input_options is not None:
+            self._options = input_options
+        return WorkspaceClient(**self._options)  # type: ignore[arg-type]
 
     def __init__(self, options: dict[str, str]):
         console.print("__init__")
@@ -34,9 +40,11 @@ class TestContext:
 
     def __enter__(self):
         console.print("__enter__")
+        self.dbx_client = self._create_dbx_client()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        self.dbx_client = None
         console.print("__exit__")
 
     def __repr__(self):
