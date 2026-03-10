@@ -269,5 +269,9 @@ async def main() -> None:
     console.print(user2)
     # create_public_private_keys()
 
+async def handler(event: dict[str, Any], context: dict[str, Any]) -> None:
+    create_public_private_keys()
+
+
 if __name__ == '__main__':
     asyncio.run(main())
