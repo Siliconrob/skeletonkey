@@ -16,10 +16,12 @@ from typing import Any, TypeVar, Callable, Tuple
 from unittest.mock import MagicMock, patch
 
 import snowflake.connector as sc
+from pydantic import SecretStr
 from rich.console import Console
 from snowflake.connector import SnowflakeConnection
 from snowflake.connector.cursor import SnowflakeCursor
 
+from RecordTypes.Credentials import Credentials
 from RecordTypes.NewUserToken import NewUserToken
 from RecordTypes.TestContext import TestContext
 from RecordTypes.User import User
@@ -175,7 +177,7 @@ def run_cmds(cmd: str) -> User:
         return all_users.popleft()
 
 
-@public_key_cursor(connection_options=get_connection_params())
+# @public_key_cursor(connection_options=get_connection_params())
 def get_user(cursor: SnowflakeCursor, cmd: str) -> User:
     users = result_set(cursor, cmd, lambda z: User(*z))
     return users.popleft()
@@ -252,10 +254,17 @@ def dbx_connect():
     for catalog in w.catalogs.list():
         console.print(catalog)
 
-async def main() -> None:
+def class_test() -> str:
+    new_creds = Credentials(user_name="test_user", password=SecretStr("test_password"))
+    console.print(new_creds)
+    return str(new_creds)
+
+
+async def main() -> Any:
     # compress()
-    mocky()
+    # mocky()
     # dbx_connect()
+    return class_test()
 
     return
 
@@ -269,9 +278,14 @@ async def main() -> None:
     console.print(user2)
     # create_public_private_keys()
 
-async def handler(event: dict[str, Any], context: dict[str, Any]) -> None:
-    create_public_private_keys()
-
+async def handler(event: dict[str, Any], context: dict[str, Any]) -> Any:
+    # create_public_private_keys()
+    try:
+        k = class_test()
+        return k
+    except Exception as e:
+        return f"Error: {str(e)}"
 
 if __name__ == '__main__':
-    asyncio.run(main())
+    # asyncio.run(main())
+    asyncio.run(handler({}, {}))
