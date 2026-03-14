@@ -227,7 +227,10 @@ def mocky() -> None:
 
     with TestContext(dbx_options) as t:  # type: ignore[arg-type]
 
-        result = t.get_dbx_value(t.dbx, lambda z: z.users.get("abc"), iam.User())
+        try:
+            result = t.get_dbx_value(t.dbx, lambda z: z.users.get("abc"))
+        except Exception as e:
+            print(e)
 
         helps = t.get_helper("normal")
         console.print(helps.echo_cmd())
@@ -294,8 +297,12 @@ def handler(event: dict[str, Any], context: dict[str, Any]) -> dict[str, str] | 
         console.print(context)
         new_keys = create_public_private_keys()
         test_data = class_test()
-        reply = str(CredentialsReply(credentials=test_data, key_pair=new_keys))
-        return json.loads(reply)
+
+        reply = CredentialsReply(credentials=test_data, key_pair=new_keys)
+        if event.get("showAllFields", False) is True:
+            return json.loads(repr(reply))
+        return json.loads(str(reply))
+        # return json.loads(reply)
         # return json.loads(str(k))  # type: ignore[return-value]
     except Exception as e:
         return f"Error: {str(e)}"
