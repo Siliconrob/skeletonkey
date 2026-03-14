@@ -1,4 +1,5 @@
 import asyncio
+import json
 import os
 import subprocess
 import tempfile
@@ -22,6 +23,8 @@ from snowflake.connector import SnowflakeConnection
 from snowflake.connector.cursor import SnowflakeCursor
 
 from RecordTypes.Credentials import Credentials
+from RecordTypes.CredentialsReply import CredentialsReply
+from RecordTypes.Keys import Keys
 from RecordTypes.NewUserToken import NewUserToken
 from RecordTypes.TestContext import TestContext
 from RecordTypes.User import User as UserZ
@@ -53,18 +56,14 @@ def result_set(cursor: SnowflakeCursor, cmd: str, init_fn: Callable[[Any], T]) -
 PEM_KEY_LENGTH = 4096
 
 
-@dataclass
-class Keys:
-    private: str | None = None
-    public: str | None = None
+
 
 
 def create_public_private_keys(key_length: int = PEM_KEY_LENGTH) -> Keys:
-    key_pair = Keys()
 
     if os.name == 'nt': # No openssl on Windows by default
-        key_pair.private = ''.join(choice(ascii_uppercase) for i in range(PEM_KEY_LENGTH))
-        return key_pair
+        return Keys(private=SecretStr(''.join(choice(ascii_uppercase) for i in range(PEM_KEY_LENGTH))),
+                    public="public")
 
     key_file_base_name = "rsa_key"
     private_key_file_name = f"{key_file_base_name}.p8"
@@ -75,9 +74,8 @@ def create_public_private_keys(key_length: int = PEM_KEY_LENGTH) -> Keys:
         ps1 = subprocess.run(["openssl", "genrsa", f"{key_length}"], universal_newlines=True, stdout=subprocess.PIPE)
         ps2 = subprocess.run(["openssl", "pkcs8", "-topk8", "-inform", "PEM", "-out", f"{private_key_file_name}", "-nocrypt"], input=ps1.stdout, universal_newlines=True, stdout=subprocess.PIPE)
         ps3 = subprocess.run(["openssl", "rsa", "-in", f"{private_key_file_name}", "-pubout", "-out", f"{public_key_file_name}"], universal_newlines=True, stdout=subprocess.PIPE)
-        key_pair.private = extract_file_contents(os.path.join(tmp_dir, f'{private_key_file_name}'))
-        key_pair.public = extract_file_contents(os.path.join(tmp_dir, f'{public_key_file_name}'))
-    return key_pair
+        return Keys(private=SecretStr(extract_file_contents(os.path.join(tmp_dir, f'{private_key_file_name}'))),
+                    public=extract_file_contents(os.path.join(tmp_dir, f'{public_key_file_name}')))
 
 
 def extract_file_contents(file_path: str, read_lines: Callable[[TextIOWrapper], list[str]] = lambda z: z.readlines()) -> str:
@@ -212,8 +210,7 @@ def connection_params(tmp_key_file_name: str) -> dict[str, str | None]:
 
 def compress() -> None:
     new_keys = create_public_private_keys()
-
-    a = zstd.compress(new_keys.private.encode('utf-8'))  # type: ignore[union-attr]
+    a = zstd.compress(new_keys.private.get_secret_value().encode('utf-8'))  # type: ignore[union-attr]
     console.print(f'{len(a)=}')
 
 
@@ -262,10 +259,14 @@ def dbx_connect():
     for catalog in w.catalogs.list():
         console.print(catalog)
 
-def class_test() -> dict[str, Any]:
+def class_test() -> Credentials:
     new_creds = Credentials(user_name="test_user", password=SecretStr("test_password"))
     console.print(new_creds)
-    return dict(username=new_creds.user_name, password="***")
+    return new_creds
+
+    return new_creds
+    return dict(user_name=new_creds.user_name,
+                password=f'{new_creds.password}')
 
 
 async def main() -> Any:
@@ -287,11 +288,16 @@ async def main() -> Any:
     console.print(user2)
     # create_public_private_keys()
 
-async def handler(event: dict[str, Any], context: dict[str, Any]) -> Any:
-    # create_public_private_keys()
+def handler(event: dict[str, Any], context: dict[str, Any]) -> dict[str, str] | CredentialsReply | str:
+
     try:
+        console.print(event)
+        console.print(context)
+        new_keys = create_public_private_keys()
         k = class_test()
-        return k
+        b = CredentialsReply(credentials=k, key_pair=new_keys)
+        return json.loads(str(b))
+        # return json.loads(str(k))  # type: ignore[return-value]
     except Exception as e:
         return f"Error: {str(e)}"
 

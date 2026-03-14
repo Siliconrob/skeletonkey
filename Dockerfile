@@ -1,4 +1,4 @@
-FROM public.ecr.aws/lambda/python:3.14
+FROM public.ecr.aws/lambda/python:3.14-arm64
 
 COPY pyproject.toml ${LAMBDA_TASK_ROOT}
 COPY uv.lock ${LAMBDA_TASK_ROOT}
@@ -10,7 +10,7 @@ RUN dnf update -y && \
     dnf clean all && \
     python3 -m pip install uv && \
 #    uv pip install -r requirements.txt \
-#    uv sync --locked
+#    uv sync --locked \
     python3 -m pip install -r requirements.txt
 
 ADD ./RecordTypes ${LAMBDA_TASK_ROOT}/RecordTypes

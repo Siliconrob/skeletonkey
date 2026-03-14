@@ -1,3 +1,5 @@
+import json
+
 from pydantic import SecretStr, BaseModel, ConfigDict, field_serializer
 
 
@@ -12,13 +14,7 @@ class Credentials(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid", validate_assignment=True)
 
     def __str__(self):
-        return self.model_dump(mode="json", exclude=set('password'))
+        return self.model_dump_json(exclude={'password'})
 
     def __repr__(self):
-        return self.model_dump(mode="json")
-        # response = {}
-        # for k, v in self.__dict__.items():
-        #     if isinstance(v, SecretStr):
-        #         v = f'{itertools.repeat("*", 8)}'
-        #     response.setdefault(k, v)
-        # return json.dumps(response)
+        return self.model_dump_json()
