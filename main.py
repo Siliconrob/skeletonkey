@@ -1,11 +1,8 @@
 import asyncio
-import functools
 import os
 import subprocess
 import tempfile
-import time
 import uuid
-import warnings
 from collections import deque
 from compression import zstd
 from dataclasses import dataclass
@@ -18,7 +15,7 @@ from unittest.mock import MagicMock, patch
 
 import databricks.sdk.service.iam as iam
 import snowflake.connector as sc
-from databricks.sdk.errors import Unknown
+from databricks.sdk import WorkspaceClient
 from pydantic import SecretStr
 from rich.console import Console
 from snowflake.connector import SnowflakeConnection
@@ -28,9 +25,6 @@ from RecordTypes.Credentials import Credentials
 from RecordTypes.NewUserToken import NewUserToken
 from RecordTypes.TestContext import TestContext
 from RecordTypes.User import User as UserZ
-from databricks.sdk import WorkspaceClient
-
-
 
 console = Console()
 
@@ -268,10 +262,10 @@ def dbx_connect():
     for catalog in w.catalogs.list():
         console.print(catalog)
 
-def class_test() -> str:
+def class_test() -> dict[str, Any]:
     new_creds = Credentials(user_name="test_user", password=SecretStr("test_password"))
     console.print(new_creds)
-    return str(new_creds)
+    return dict(username=new_creds.user_name, password="***")
 
 
 async def main() -> Any:
