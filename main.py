@@ -297,13 +297,12 @@ def handler(event: dict[str, Any], context: dict[str, Any]) -> dict[str, str] | 
         console.print(context)
         new_keys = create_public_private_keys()
         test_data = class_test()
-
         reply = CredentialsReply(credentials=test_data, key_pair=new_keys)
+
+        reply_text =str(reply)
         if event.get("showAllFields", False) is True:
-            return json.loads(repr(reply))
-        return json.loads(str(reply))
-        # return json.loads(reply)
-        # return json.loads(str(k))  # type: ignore[return-value]
+            reply_text = repr(reply)
+        return json.loads(reply_text)
     except Exception as e:
         return f"Error: {str(e)}"
 
