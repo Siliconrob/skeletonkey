@@ -63,7 +63,7 @@ class TestContext:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.dbx = None
+        del self.dbx
         console.print("__exit__")
 
     def __repr__(self):
