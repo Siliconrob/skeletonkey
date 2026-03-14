@@ -29,7 +29,8 @@ class TestContext:
     dbx: WorkspaceClient
 
     @staticmethod
-    def get_dbx_value(dbx_client: WorkspaceClient, run_fn: Callable[[WorkspaceClient], T],
+    def get_dbx_value(dbx_client: WorkspaceClient,
+                      run_fn: Callable[[WorkspaceClient], T],
                       default_value: T | None = None) -> T:
         @wraps(run_fn)
         def wrapper(*args, **kwargs):
