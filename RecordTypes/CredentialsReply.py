@@ -13,7 +13,10 @@ class CredentialsReply(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid", validate_assignment=True)
 
     def __str__(self):
-        return self.model_dump_json()
+        return self.model_dump_json(exclude={
+            "credentials": { "password" },
+            "key_pair": { "private" }
+        })
 
     def __repr__(self):
         return self.model_dump_json()
