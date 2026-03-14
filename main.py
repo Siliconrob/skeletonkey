@@ -248,7 +248,7 @@ def mocky() -> None:
 
     with TestContext(dbx_options) as t:  # type: ignore[arg-type]
 
-        result = get_dbx_property(t.dbx, lambda z: z.users.get("abc"))
+        result = get_dbx_value(t.dbx, lambda z: z.users.get("abc"))
 
         helps = t.get_helper("normal")
         console.print(helps.echo_cmd())
