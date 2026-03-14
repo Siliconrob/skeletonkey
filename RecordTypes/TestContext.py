@@ -23,7 +23,7 @@ class Helper:
 class TestContext:
 
     _options: dict[str, str | Any]
-    dbx: WorkspaceClient | None = None
+    dbx: WorkspaceClient
 
     def get_helper(self, new_cmd: str) -> Helper:
         self._options[new_cmd] = new_cmd

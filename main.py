@@ -5,6 +5,7 @@ import subprocess
 import tempfile
 import time
 import uuid
+import warnings
 from collections import deque
 from compression import zstd
 from dataclasses import dataclass
@@ -15,6 +16,7 @@ from string import ascii_uppercase
 from typing import Any, TypeVar, Callable, Tuple
 from unittest.mock import MagicMock, patch
 
+import databricks.sdk.service.iam as iam
 import snowflake.connector as sc
 from pydantic import SecretStr
 from rich.console import Console
@@ -24,7 +26,7 @@ from snowflake.connector.cursor import SnowflakeCursor
 from RecordTypes.Credentials import Credentials
 from RecordTypes.NewUserToken import NewUserToken
 from RecordTypes.TestContext import TestContext
-from RecordTypes.User import User
+from RecordTypes.User import User as UserZ
 from databricks.sdk import WorkspaceClient
 
 
@@ -138,6 +140,7 @@ def public_key_connection(connection_options: dict[str, str | None]) -> Snowflak
     private_key = connection_options.get("private_key")
     account = connection_options.get("account")
     user = connection_options.get("user")
+    warehouse = connection_options.get("warehouse")
 
     def validate_input(input_text: str | None) -> bool:
         return input_text is not None and len(input_text.strip()) > 0
@@ -146,7 +149,8 @@ def public_key_connection(connection_options: dict[str, str | None]) -> Snowflak
     for k,v in dict(
         private_key=validate_input(private_key),
         account=validate_input(account),
-        user=validate_input(user)
+        user=validate_input(user),
+        # warehouse=validate_input(warehouse)
     ).items():
         if not v:
             invalid_params.append(f"No value for {k}")
@@ -160,10 +164,11 @@ def public_key_connection(connection_options: dict[str, str | None]) -> Snowflak
         conn_params = dict(account=account,
                            user=user,
                            authenticator='SNOWFLAKE_JWT',
+                           # warehouse=warehouse,
                            private_key_file=tmp_key_file.name)
         return sc.connect(**conn_params)
 
-def run_cmds(cmd: str) -> User:
+def run_cmds(cmd: str) -> UserZ:
     # with (public_key_connection(get_connection_params()) as conn, conn.cursor() as cursor):
     conn = public_key_connection(get_connection_params())
     # with conn.cursor() as cursor:
@@ -172,18 +177,18 @@ def run_cmds(cmd: str) -> User:
 
     console.print(conn)
     with conn.cursor() as cursor:
-        all_users = result_set(cursor, "SHOW USERS", lambda z: User(*z))
+        all_users = result_set(cursor, "SHOW USERS", lambda z: UserZ(*z))
         console.print(all_users)
         return all_users.popleft()
 
 
 # @public_key_cursor(connection_options=get_connection_params())
-def get_user(cursor: SnowflakeCursor, cmd: str) -> User:
-    users = result_set(cursor, cmd, lambda z: User(*z))
+def get_user(cursor: SnowflakeCursor, cmd: str) -> UserZ:
+    users = result_set(cursor, cmd, lambda z: UserZ(*z))
     return users.popleft()
 
 
-def certification_action() -> Tuple[User, NewUserToken]:
+def certification_action() -> Tuple[UserZ, NewUserToken]:
 
     user_info = None
     token_info = None
@@ -194,7 +199,7 @@ def certification_action() -> Tuple[User, NewUserToken]:
         conn_params = connection_params(tmp_key_file.name)
         with (sc.connect(**conn_params) as conn, conn.cursor() as cursor):
             show_users_sql = f"SHOW USERS LIKE '{os.getenv('SNOWFLAKE_USER')}'"
-            user_info = result_set(cursor, show_users_sql, lambda z: User(*z)).popleft()
+            user_info = result_set(cursor, show_users_sql, lambda z: UserZ(*z)).popleft()
             if user_info is not None and user_info.created_on is not None:
                 user_name = os.getenv('SNOWFLAKE_USER')
                 new_token_name = f"{user_name}_token_{uuid.uuid4().hex}"
@@ -216,6 +221,23 @@ def compress() -> None:
     a = zstd.compress(new_keys.private.encode('utf-8'))  # type: ignore[union-attr]
     console.print(f'{len(a)=}')
 
+def get_dbx_property(dbx_client: WorkspaceClient, get_fn: Callable[[WorkspaceClient], T], default_value: T | None = None) -> T:
+    @wraps(get_fn)
+    def wrapper(*args, **kwargs):
+        try:
+            return get_fn(*args, **kwargs)
+        except Exception:
+            if default_value is not None:
+                warnings.warn(f"Failed to get {wrapper.__name__} from Databricks. Using default value.")
+                return default_value
+            raise
+    return wrapper(dbx_client)
+
+
+    # return functools.partial(Callable, dbx_client, *args, **kwargs)
+
+def ff_name(client: WorkspaceClient) -> iam.User:
+    return client.users.get("abc")
 
 def mocky() -> None:
 
@@ -224,6 +246,9 @@ def mocky() -> None:
                client_secret=os.getenv("DBX_CLIENT_SECRET"))
 
     with TestContext(dbx_options) as t:  # type: ignore[arg-type]
+
+        result = get_dbx_property(t.dbx, lambda z: z.users.get("abc"))
+
         helps = t.get_helper("normal")
         console.print(helps.echo_cmd())
         helps = t.get_helper("bah")
@@ -262,7 +287,8 @@ def class_test() -> str:
 
 async def main() -> Any:
     # compress()
-    # mocky()
+    mocky()
+    return
     # dbx_connect()
     return class_test()
 
@@ -287,5 +313,5 @@ async def handler(event: dict[str, Any], context: dict[str, Any]) -> Any:
         return f"Error: {str(e)}"
 
 if __name__ == '__main__':
-    # asyncio.run(main())
-    asyncio.run(handler({}, {}))
+    asyncio.run(main())
+    # asyncio.run(handler({}, {}))
