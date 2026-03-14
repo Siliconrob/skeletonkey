@@ -294,9 +294,9 @@ def handler(event: dict[str, Any], context: dict[str, Any]) -> dict[str, str] | 
         console.print(event)
         console.print(context)
         new_keys = create_public_private_keys()
-        k = class_test()
-        b = CredentialsReply(credentials=k, key_pair=new_keys)
-        return json.loads(str(b))
+        test_data = class_test()
+        reply = str(CredentialsReply(credentials=test_data, key_pair=new_keys))
+        return json.loads(reply)
         # return json.loads(str(k))  # type: ignore[return-value]
     except Exception as e:
         return f"Error: {str(e)}"
