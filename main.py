@@ -18,6 +18,7 @@ from unittest.mock import MagicMock, patch
 
 import databricks.sdk.service.iam as iam
 import snowflake.connector as sc
+from databricks.sdk.errors import Unknown
 from pydantic import SecretStr
 from rich.console import Console
 from snowflake.connector import SnowflakeConnection
@@ -221,11 +222,11 @@ def compress() -> None:
     a = zstd.compress(new_keys.private.encode('utf-8'))  # type: ignore[union-attr]
     console.print(f'{len(a)=}')
 
-def get_dbx_property(dbx_client: WorkspaceClient, get_fn: Callable[[WorkspaceClient], T], default_value: T | None = None) -> T:
-    @wraps(get_fn)
+def get_dbx_value(dbx_client: WorkspaceClient, run_fn: Callable[[WorkspaceClient], T], default_value: T | None = None) -> T:
+    @wraps(run_fn)
     def wrapper(*args, **kwargs):
         try:
-            return get_fn(*args, **kwargs)
+            return run_fn(*args, **kwargs)
         except Exception:
             if default_value is not None:
                 warnings.warn(f"Failed to get {wrapper.__name__} from Databricks. Using default value.")
