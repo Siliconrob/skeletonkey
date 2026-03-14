@@ -1,4 +1,6 @@
-from typing import Any
+import warnings
+from functools import wraps
+from typing import Any, TypeVar, Callable
 
 from databricks.sdk import WorkspaceClient
 from rich.console import Console
@@ -19,11 +21,27 @@ class Helper:
     def dbx_client(self) -> WorkspaceClient:
         return WorkspaceClient(**self._options)  # type: ignore[arg-type]
 
+T = TypeVar("T")
 
 class TestContext:
 
     _options: dict[str, str | Any]
     dbx: WorkspaceClient
+
+    @staticmethod
+    def get_dbx_value(dbx_client: WorkspaceClient, run_fn: Callable[[WorkspaceClient], T],
+                      default_value: T | None = None) -> T:
+        @wraps(run_fn)
+        def wrapper(*args, **kwargs):
+            try:
+                return run_fn(*args, **kwargs)
+            except Exception:
+                if default_value is not None:
+                    warnings.warn(f"Failed to get {wrapper.__name__} from Databricks. Using default value.")
+                    return default_value
+                raise
+
+        return wrapper(dbx_client)
 
     def get_helper(self, new_cmd: str) -> Helper:
         self._options[new_cmd] = new_cmd

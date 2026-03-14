@@ -222,18 +222,6 @@ def compress() -> None:
     a = zstd.compress(new_keys.private.encode('utf-8'))  # type: ignore[union-attr]
     console.print(f'{len(a)=}')
 
-def get_dbx_value(dbx_client: WorkspaceClient, run_fn: Callable[[WorkspaceClient], T], default_value: T | None = None) -> T:
-    @wraps(run_fn)
-    def wrapper(*args, **kwargs):
-        try:
-            return run_fn(*args, **kwargs)
-        except Exception:
-            if default_value is not None:
-                warnings.warn(f"Failed to get {wrapper.__name__} from Databricks. Using default value.")
-                return default_value
-            raise
-    return wrapper(dbx_client)
-
 
     # return functools.partial(Callable, dbx_client, *args, **kwargs)
 
@@ -248,7 +236,7 @@ def mocky() -> None:
 
     with TestContext(dbx_options) as t:  # type: ignore[arg-type]
 
-        result = get_dbx_value(t.dbx, lambda z: z.users.get("abc"))
+        result = t.get_dbx_value(t.dbx, lambda z: z.users.get("abc"), iam.User())
 
         helps = t.get_helper("normal")
         console.print(helps.echo_cmd())
