@@ -289,7 +289,6 @@ async def main() -> Any:
     # create_public_private_keys()
 
 def handler(event: dict[str, Any], context: dict[str, Any]) -> dict[str, str] | CredentialsReply | str:
-
     try:
         console.print(event)
         console.print(context)
