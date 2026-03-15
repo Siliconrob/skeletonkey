@@ -26,6 +26,7 @@ from RecordTypes.Credentials import Credentials
 from RecordTypes.CredentialsReply import CredentialsReply
 from RecordTypes.Keys import Keys
 from RecordTypes.NewUserToken import NewUserToken
+from RecordTypes.Step import DoSomething, StepStatus, construct_steps
 from RecordTypes.TestContext import TestContext
 from RecordTypes.User import User as UserZ
 
@@ -272,6 +273,21 @@ def class_test() -> Credentials:
                 password=f'{new_creds.password}')
 
 
+async def main2() -> Any:
+
+    step = DoSomething(name="test")
+    step2 = DoSomething()
+    current_step = construct_steps(steps=[step, step2])
+    start = current_step
+    while current_step is not None and current_step.current_status == StepStatus.PENDING:
+        try:
+            current_step = current_step.process()  # type: ignore[assignment]
+        except Exception as e:
+            current_step = current_step.undo()  # type: ignore[assignment]
+    start.cleanup()
+
+
+
 async def main() -> Any:
     # compress()
     mocky()
@@ -307,5 +323,5 @@ def handler(event: dict[str, Any], context: dict[str, Any]) -> dict[str, str] | 
         return f"Error: {str(e)}"
 
 if __name__ == '__main__':
-    asyncio.run(main())
+    asyncio.run(main2())
     # asyncio.run(handler({}, {}))
