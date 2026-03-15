@@ -278,13 +278,13 @@ async def main2() -> Any:
     step = DoSomething(name="test")
     step2 = DoSomething()
     current_step = construct_steps(steps=[step, step2])
-    start = current_step
-    while current_step is not None and current_step.current_status == StepStatus.PENDING:
+    # start = current_step
+    while current_step is not None and current_step.current_status.value == StepStatus.PENDING:
         try:
             current_step = current_step.process()  # type: ignore[assignment]
         except Exception as e:
             current_step = current_step.undo()  # type: ignore[assignment]
-    start.cleanup()
+    # start.cleanup()
 
 
 

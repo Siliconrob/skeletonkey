@@ -3,7 +3,8 @@ from abc import abstractmethod
 from collections import deque
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Protocol
+from typing import Any, Protocol, Literal
+from datetime import datetime, timezone
 
 
 class StepStatus(Enum):
@@ -11,17 +12,36 @@ class StepStatus(Enum):
     SUCCESS = "success"
     FAILURE = "failure"
 
+@dataclass(frozen=True)
+class StatusEntry:
+    value: StepStatus
+    timestamp: datetime
+    action: str = "unknown"
+
 @dataclass
 class Step(Protocol):
+
+    def __post_init__(self):
+        self._status.append(StatusEntry(value=StepStatus.PENDING,
+                                        action=self.process.__name__,
+                                        timestamp=datetime.now(tz=timezone.utc)))
+
     name: str = f'step_name_{uuid.uuid4().hex}'
-    _status: StepStatus = StepStatus.PENDING
+    _status: list[StatusEntry] = field(default_factory=list)
     previous_step: Step | None = None
     next_step: Step | None = None
     # _temporary_data: dict[str, Any] = field(default_factory=dict)
 
     @property
-    def current_status(self) -> StepStatus:
-        return self._status
+    def current_status(self) -> StatusEntry:
+        return self._status[-1]
+
+    @property
+    def status_history(self) -> list[str]:
+        results:list[str] = []
+        for entry in self._status:
+            results.append(f'{entry.timestamp.isoformat()}: {entry.action}, {entry.value}')
+        return results
 
     @abstractmethod
     def process(self,  *args, **kwargs) -> Step | None:
@@ -65,17 +85,29 @@ def construct_steps(steps: list[Step]) -> Step:
 @dataclass
 class DoSomething(Step):
     def undo(self, *args, **kwargs) -> Step | None:
+        action_name = self.undo.__name__
         if kwargs.get("fail", False):
-            self._status = StepStatus.FAILURE
+            self._status.append(StatusEntry(value=StepStatus.FAILURE,
+                                            action=action_name,
+                                            timestamp=datetime.now(tz=timezone.utc)))
             raise Exception("Not implemented")
-        self._status = StepStatus.SUCCESS
-        print("Undo completed")
+        self._status.append(StatusEntry(value=StepStatus.SUCCESS,
+                                        action=action_name,
+                                        ))
+        print(f'Undo completed {kwargs}')
+        print(self.status_history)
         return self.previous()
 
     def process(self, *args, **kwargs) -> Step | None:
+        action_name = self.process.__name__
         if kwargs.get("fail", False):
-            self._status = StepStatus.FAILURE
+            self._status.append(StatusEntry(value=StepStatus.FAILURE,
+                                            action=action_name,
+                                            timestamp=datetime.now(tz=timezone.utc)))
             raise Exception("Not implemented")
-        self._status = StepStatus.SUCCESS
+        self._status.append(StatusEntry(value=StepStatus.SUCCESS,
+                                        action=action_name,
+                                        timestamp=datetime.now(tz=timezone.utc)))
         print("Process completed")
+        print(self.status_history)
         return self.next()
