@@ -3,6 +3,7 @@ import json
 import os
 import subprocess
 import tempfile
+import threading
 import uuid
 from collections import deque
 from compression import zstd
@@ -26,7 +27,7 @@ from RecordTypes.Credentials import Credentials
 from RecordTypes.CredentialsReply import CredentialsReply
 from RecordTypes.Keys import Keys
 from RecordTypes.NewUserToken import NewUserToken
-from RecordTypes.Step import DoSomething, StepStatus, construct_steps
+from RecordTypes.Step import DoSomething, StepStatus, build_steps
 from RecordTypes.TestContext import TestContext
 from RecordTypes.User import User as UserZ
 
@@ -277,8 +278,7 @@ async def main2() -> Any:
 
     step = DoSomething(name="test")
     step2 = DoSomething()
-    current_step = construct_steps(steps=[step, step2])
-    # start = current_step
+    current_step = build_steps(steps=[step, step2])
     i = 0
     in_rollback = False
     while current_step is not None:
@@ -292,10 +292,9 @@ async def main2() -> Any:
             in_rollback = True
         i += 1
     if in_rollback:
-        in_rollback = False
-
-    # start.cleanup()
-
+        print("Rollback complete")
+    else:
+        print("Steps completed successfully")
 
 
 async def main() -> Any:

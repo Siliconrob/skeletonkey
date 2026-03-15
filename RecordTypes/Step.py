@@ -74,7 +74,7 @@ class Step(Protocol):
         return self.previous_step
 
 
-def construct_steps(steps: list[Step]) -> Step:
+def build_steps(steps: list[Step]) -> Step:
     start = steps[0]
     for i, step in enumerate(steps):
         if i == 0:
