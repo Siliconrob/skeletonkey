@@ -1,6 +1,5 @@
 import uuid
 from abc import abstractmethod
-from collections import deque
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Protocol, Literal
@@ -11,19 +10,23 @@ class StepStatus(Enum):
     PENDING = "pending"
     SUCCESS = "success"
     FAILURE = "failure"
+    ROLLBACK = "rollback"
+
 
 @dataclass(frozen=True)
 class StatusEntry:
-    value: StepStatus
+    identifier: StepStatus
     timestamp: datetime
-    action: str = "unknown"
+    method: str = "unknown"
+    args: tuple[Any, ...] = ()
+    kwargs: dict[str, Any] = field(default_factory=dict)
 
 @dataclass
 class Step(Protocol):
 
     def __post_init__(self):
-        self._status.append(StatusEntry(value=StepStatus.PENDING,
-                                        action=self.process.__name__,
+        self._status.append(StatusEntry(identifier=StepStatus.PENDING,
+                                        method=self.run.__name__,
                                         timestamp=datetime.now(tz=timezone.utc)))
 
     name: str = f'step_name_{uuid.uuid4().hex}'
@@ -37,18 +40,18 @@ class Step(Protocol):
         return self._status[-1]
 
     @property
-    def status_history(self) -> list[str]:
+    def status_history(self) -> str:
         results:list[str] = []
-        for entry in self._status:
-            results.append(f'{entry.timestamp.isoformat()}: {entry.action}, {entry.value}')
-        return results
+        for entry in sorted(self._status, key=lambda x: x.timestamp.timestamp()):
+            results.append(f'{entry.timestamp.isoformat()}: {entry.method}, {entry.identifier.value}')
+        return '\n'.join(results)
 
     @abstractmethod
-    def process(self,  *args, **kwargs) -> Step | None:
+    def run(self,  *args, **kwargs) -> Step | None:
         ...
 
     @abstractmethod
-    def undo(self,  *args, **kwargs) -> Step | None:
+    def rollback(self,  *args, **kwargs) -> Step | None:
         ...
 
     # def create_temporary_data(self, *args, **kwargs) -> None:
@@ -84,30 +87,41 @@ def construct_steps(steps: list[Step]) -> Step:
 
 @dataclass
 class DoSomething(Step):
-    def undo(self, *args, **kwargs) -> Step | None:
-        action_name = self.undo.__name__
+    def rollback(self,  *args, **kwargs) -> Step | None:
+        action_name = self.rollback.__name__
         if kwargs.get("fail", False):
-            self._status.append(StatusEntry(value=StepStatus.FAILURE,
-                                            action=action_name,
+            self._status.append(StatusEntry(identifier=StepStatus.FAILURE,
+                                            method=action_name,
+                                            args=args,
+                                            kwargs=kwargs,
                                             timestamp=datetime.now(tz=timezone.utc)))
-            raise Exception("Not implemented")
-        self._status.append(StatusEntry(value=StepStatus.SUCCESS,
-                                        action=action_name,
-                                        ))
-        print(f'Undo completed {kwargs}')
+
+            raise Exception(f'{action_name} {self.name} failed')
+        self._status.append(StatusEntry(identifier=StepStatus.SUCCESS,
+                                        method=action_name,
+                                        args=args,
+                                        kwargs=kwargs,
+                                        timestamp=datetime.now(tz=timezone.utc)))
         print(self.status_history)
+        print(f'{action_name} {self.name} completed')
         return self.previous()
 
-    def process(self, *args, **kwargs) -> Step | None:
-        action_name = self.process.__name__
+    def run(self, *args, **kwargs) -> Step | None:
+        action_name = self.run.__name__
+
         if kwargs.get("fail", False):
-            self._status.append(StatusEntry(value=StepStatus.FAILURE,
-                                            action=action_name,
+            self._status.append(StatusEntry(identifier=StepStatus.FAILURE,
+                                            method=action_name,
+                                            args=args,
+                                            kwargs=kwargs,
                                             timestamp=datetime.now(tz=timezone.utc)))
-            raise Exception("Not implemented")
-        self._status.append(StatusEntry(value=StepStatus.SUCCESS,
-                                        action=action_name,
+            raise Exception(f'{action_name} {self.name} failed')
+        self._status.append(StatusEntry(identifier=StepStatus.SUCCESS,
+                                        method=action_name,
+                                        args=args,
+                                        kwargs=kwargs,
                                         timestamp=datetime.now(tz=timezone.utc)))
-        print("Process completed")
         print(self.status_history)
+        print(f'{action_name} {self.name} completed')
+
         return self.next()

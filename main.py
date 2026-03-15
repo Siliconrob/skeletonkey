@@ -279,11 +279,21 @@ async def main2() -> Any:
     step2 = DoSomething()
     current_step = construct_steps(steps=[step, step2])
     # start = current_step
-    while current_step is not None and current_step.current_status.value == StepStatus.PENDING:
+    i = 0
+    in_rollback = False
+    while current_step is not None:
         try:
-            current_step = current_step.process()  # type: ignore[assignment]
+            force_failure = True if i == 1 else False
+            if in_rollback:
+                current_step = current_step.rollback()  # type: ignore[assignment]
+                continue
+            current_step = current_step.run(fail=force_failure)  # type: ignore[assignment]
         except Exception as e:
-            current_step = current_step.undo()  # type: ignore[assignment]
+            in_rollback = True
+        i += 1
+    if in_rollback:
+        in_rollback = False
+
     # start.cleanup()
 
 
