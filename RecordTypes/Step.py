@@ -1,4 +1,4 @@
-from abc import abstractmethod
+from abc import abstractmethod, ABC
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
@@ -25,28 +25,27 @@ class StepArgs:
 
 
 @dataclass
-class Step(Protocol):
+class Step(ABC):
 
-    def __post_init__(self):
-        self._status.append(StatusEntry(identifier=StepStatus.PENDING,
-                                        method=self.run.__name__,
-                                        timestamp=datetime.now(tz=timezone.utc)))
+    # def __post_init__(self):
+    #     self._status.append(StatusEntry(identifier=StepStatus.PENDING,
+    #                                     method=self.run.__name__,
+    #                                     timestamp=datetime.now(tz=timezone.utc)))
     id: int = 0
-    _status: list[StatusEntry] = field(default_factory=list)
     previous_step: Step | None = None
     next_step: Step | None = None
     args: StepArgs = field(default_factory=StepArgs)
 
-    @property
-    def current_status(self) -> StatusEntry:
-        return self._status[-1]
+    # @property
+    # def current_status(self) -> StatusEntry:
+    #     return self._status[-1]
 
-    @property
-    def status_history(self) -> str:
-        results:list[str] = []
-        for entry in sorted(self._status, key=lambda x: x.timestamp.timestamp()):
-            results.append(f'{entry.timestamp.isoformat()}: {entry.method}, {entry.identifier.value}')
-        return '\n'.join(results)
+    # @property
+    # def status_history(self) -> str:
+    #     results:list[str] = []
+    #     for entry in sorted(self._status, key=lambda x: x.timestamp.timestamp()):
+    #         results.append(f'{entry.timestamp.isoformat()}: {entry.method}, {entry.identifier.value}')
+    #     return '\n'.join(results)
 
     @abstractmethod
     def perform_step(self, *args, **kwargs) -> StepArgs:

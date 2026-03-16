@@ -25,10 +25,10 @@ from snowflake.connector.cursor import SnowflakeCursor
 
 from RecordTypes.Credentials import Credentials
 from RecordTypes.CredentialsReply import CredentialsReply
-from RecordTypes.DoSomething import DoSomething
+from RecordTypes.StepImplementation import DoSomething, WriteFile
 from RecordTypes.Keys import Keys
 from RecordTypes.NewUserToken import NewUserToken
-from RecordTypes.Step import build_steps
+from RecordTypes.Step import build_steps, StatusEntry
 from RecordTypes.TestContext import TestContext
 from RecordTypes.User import User as UserZ
 
@@ -278,14 +278,16 @@ def class_test() -> Credentials:
 async def main2() -> Any:
 
     step = DoSomething()
-    step2 = DoSomething()
+    step2 = WriteFile()
     step3 = DoSomething()
     step4 = DoSomething()
     step5 = DoSomething()
     current_step = build_steps(steps=[step, step2, step3, step4, step5])
     i = 0
-    in_rollback = False
 
+    status_history = list[StatusEntry]
+
+    in_rollback = False
     while current_step is not None:
         try:
             force_failure = True if i == 2 else False
