@@ -2,7 +2,7 @@ from abc import abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Protocol
+from typing import Any, Protocol, Callable
 
 
 class StepStatus(Enum):
@@ -17,8 +17,12 @@ class StatusEntry:
     identifier: StepStatus
     timestamp: datetime
     method: str = "unknown"
-    args: tuple[Any, ...] = ()
-    kwargs: dict[str, Any] = field(default_factory=dict)
+
+@dataclass
+class StepArgs:
+    run: dict[str, Any] = field(default_factory=dict)
+    undo: dict[str, Any] = field(default_factory=dict)
+
 
 @dataclass
 class Step(Protocol):
@@ -31,6 +35,7 @@ class Step(Protocol):
     _status: list[StatusEntry] = field(default_factory=list)
     previous_step: Step | None = None
     next_step: Step | None = None
+    args: StepArgs = field(default_factory=StepArgs)
 
     @property
     def current_status(self) -> StatusEntry:
@@ -44,12 +49,25 @@ class Step(Protocol):
         return '\n'.join(results)
 
     @abstractmethod
-    def run(self,  *args, **kwargs) -> Step | None:
+    def perform_step(self, *args, **kwargs) -> StepArgs:
         ...
 
     @abstractmethod
-    def rollback(self,  *args, **kwargs) -> Step | None:
+    def undo_step(self,  *args, **kwargs) -> None:
         ...
+
+    def run(self, *args, **kwargs) -> Step | None:
+        output = self.perform_step(*args, **kwargs)
+        self.args.undo= output.undo
+        next_step = self.next()
+        if next_step is None:
+            return next_step
+        next_step.args.run.update(output.run)
+        return next_step
+
+    def rollback(self) -> Step | None:
+        self.undo_step(**self.args.undo)
+        return self.previous()
 
     def next(self) -> Step | None:
         if self.next_step is None:
@@ -72,44 +90,3 @@ def build_steps(steps: list[Step]) -> Step:
             step.previous_step = steps[i-1]
         step.next_step = steps[i + 1] if i < len(steps) - 1 else None
     return start
-
-
-@dataclass
-class DoSomething(Step):
-    def rollback(self,  *args, **kwargs) -> Step | None:
-        action_name = self.rollback.__name__
-        if kwargs.get("fail", False):
-            self._status.append(StatusEntry(identifier=StepStatus.FAILURE,
-                                            method=action_name,
-                                            args=args,
-                                            kwargs=kwargs,
-                                            timestamp=datetime.now(tz=timezone.utc)))
-
-            raise Exception(f'{action_name} {self.id=} {args=} {kwargs=}  failed')
-        self._status.append(StatusEntry(identifier=StepStatus.SUCCESS,
-                                        method=action_name,
-                                        args=args,
-                                        kwargs=kwargs,
-                                        timestamp=datetime.now(tz=timezone.utc)))
-        print(self.status_history)
-        print(f'{action_name} {self.id=} completed')
-        return self.previous()
-
-    def run(self, *args, **kwargs) -> Step | None:
-        action_name = self.run.__name__
-
-        if kwargs.get("fail", False):
-            self._status.append(StatusEntry(identifier=StepStatus.FAILURE,
-                                            method=action_name,
-                                            args=args,
-                                            kwargs=kwargs,
-                                            timestamp=datetime.now(tz=timezone.utc)))
-            raise Exception(f'{action_name} {self.id=} {args=} {kwargs=} failed')
-        self._status.append(StatusEntry(identifier=StepStatus.SUCCESS,
-                                        method=action_name,
-                                        args=args,
-                                        kwargs=kwargs,
-                                        timestamp=datetime.now(tz=timezone.utc)))
-        print(self.status_history)
-        print(f'{action_name} {self.id=} completed')
-        return self.next()
