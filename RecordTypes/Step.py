@@ -1,4 +1,3 @@
-import uuid
 from abc import abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
@@ -28,12 +27,10 @@ class Step(Protocol):
         self._status.append(StatusEntry(identifier=StepStatus.PENDING,
                                         method=self.run.__name__,
                                         timestamp=datetime.now(tz=timezone.utc)))
-
-    name: str = f'step_name_{uuid.uuid4().hex}'
+    id: int = 0
     _status: list[StatusEntry] = field(default_factory=list)
     previous_step: Step | None = None
     next_step: Step | None = None
-    # _temporary_data: dict[str, Any] = field(default_factory=dict)
 
     @property
     def current_status(self) -> StatusEntry:
@@ -54,15 +51,6 @@ class Step(Protocol):
     def rollback(self,  *args, **kwargs) -> Step | None:
         ...
 
-    # def create_temporary_data(self, *args, **kwargs) -> None:
-    #     self._temporary_data = kwargs
-
-    # def cleanup(self) -> None:
-    #     current_step = self
-    #     while current_step.next_step is not None:
-    #         del self._temporary_data
-    #         current_step = current_step.next()  # type: ignore[assignment]
-
     def next(self) -> Step | None:
         if self.next_step is None:
             return None
@@ -77,6 +65,7 @@ class Step(Protocol):
 def build_steps(steps: list[Step]) -> Step:
     start = steps[0]
     for i, step in enumerate(steps):
+        step.id = i + 1
         if i == 0:
             step.previous_step = None
         else:
@@ -96,14 +85,14 @@ class DoSomething(Step):
                                             kwargs=kwargs,
                                             timestamp=datetime.now(tz=timezone.utc)))
 
-            raise Exception(f'{action_name} {self.name} failed')
+            raise Exception(f'{action_name} {self.id=} {args=} {kwargs=}  failed')
         self._status.append(StatusEntry(identifier=StepStatus.SUCCESS,
                                         method=action_name,
                                         args=args,
                                         kwargs=kwargs,
                                         timestamp=datetime.now(tz=timezone.utc)))
         print(self.status_history)
-        print(f'{action_name} {self.name} completed')
+        print(f'{action_name} {self.id=} completed')
         return self.previous()
 
     def run(self, *args, **kwargs) -> Step | None:
@@ -115,13 +104,12 @@ class DoSomething(Step):
                                             args=args,
                                             kwargs=kwargs,
                                             timestamp=datetime.now(tz=timezone.utc)))
-            raise Exception(f'{action_name} {self.name} failed')
+            raise Exception(f'{action_name} {self.id=} {args=} {kwargs=} failed')
         self._status.append(StatusEntry(identifier=StepStatus.SUCCESS,
                                         method=action_name,
                                         args=args,
                                         kwargs=kwargs,
                                         timestamp=datetime.now(tz=timezone.utc)))
         print(self.status_history)
-        print(f'{action_name} {self.name} completed')
-
+        print(f'{action_name} {self.id=} completed')
         return self.next()

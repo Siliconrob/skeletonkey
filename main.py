@@ -276,20 +276,24 @@ def class_test() -> Credentials:
 
 async def main2() -> Any:
 
-    step = DoSomething(name="test")
+    step = DoSomething()
     step2 = DoSomething()
-    current_step = build_steps(steps=[step, step2])
+    step3 = DoSomething()
+    step4 = DoSomething()
+    step5 = DoSomething()
+    current_step = build_steps(steps=[step, step2, step3, step4, step5])
     i = 0
     in_rollback = False
     while current_step is not None:
         try:
-            force_failure = True if i == 1 else False
+            force_failure = True if i == 2 else False
             if in_rollback:
                 current_step = current_step.rollback()  # type: ignore[assignment]
                 continue
             current_step = current_step.run(fail=force_failure)  # type: ignore[assignment]
         except Exception as e:
             in_rollback = True
+            print(f"{current_step.id=}: {e=}")
         i += 1
     if in_rollback:
         print("Rollback complete")
