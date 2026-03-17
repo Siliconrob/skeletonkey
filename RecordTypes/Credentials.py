@@ -13,8 +13,8 @@ class Credentials(BaseModel):
 
     model_config = ConfigDict(frozen=True, extra="forbid", validate_assignment=True)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.model_dump_json(exclude={'password'})
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return self.model_dump_json()
