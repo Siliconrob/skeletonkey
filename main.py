@@ -300,6 +300,7 @@ def dbx_connect():
     data = Path("./Notebooks/TestNotebook.py").read_bytes()
     notebook_path = f'/Workspace/Users/{user_name}/CopiedBook'
     w.workspace.upload(path=notebook_path,
+                       overwrite=True,
                        content=data,
                        format=ImportFormat.SOURCE,
                        language=Language.PYTHON)
