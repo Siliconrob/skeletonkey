@@ -8,14 +8,18 @@ from collections import deque
 from compression import zstd
 from functools import wraps
 from io import TextIOWrapper
+from pathlib import Path
 from random import choice
 from string import ascii_uppercase
+from time import time_ns
 from typing import Any, TypeVar, Callable, Tuple
 from unittest.mock import MagicMock, patch
 
 import databricks.sdk.service.iam as iam
 import snowflake.connector as sc
 from databricks.sdk import WorkspaceClient
+from databricks.sdk.service.jobs import JobRunAs
+from databricks.sdk.service.workspace import ImportFormat, Language
 from pydantic import SecretStr
 from rich.console import Console
 from snowflake.connector import SnowflakeConnection
@@ -29,6 +33,7 @@ from RecordTypes.Step import build_steps, StatusEntry
 from RecordTypes.StepImplementation import DoSomething, WriteFile
 from RecordTypes.TestContext import TestContext
 from RecordTypes.User import User as UserZ
+from databricks.sdk.service import jobs
 
 console = Console()
 
@@ -254,14 +259,51 @@ def mocky() -> None:
     console.print(m.call_count)
 
 
+def run_job(w: WorkspaceClient) -> None:
+    run_notebook_name = os.getenv("DBX_USERNAME")
+    notebook_path = f'/Workspace/Users/{run_notebook_name}/TestNotebook'
+
+    defined_notebook_params = dict(message='')
+    message_details = json.dumps(dict(user_name="test_user", public_key=f"test_public_key"))
+    input_notebook_params = dict(message=message_details)
+
+
+
+    created_job = w.jobs.create(
+        name=f"sdk-{time_ns()}",
+        run_as=JobRunAs(user_name=run_notebook_name),
+        tasks=[
+            jobs.Task(
+                description="test",
+                # existing_cluster_id=cluster_id,
+                notebook_task=jobs.NotebookTask(
+                    notebook_path=notebook_path,
+                    base_parameters=defined_notebook_params),
+                task_key="test",
+                timeout_seconds=0,
+            )
+        ],
+    )
+    print(f'{created_job=}')
+    w.jobs.run_now_and_wait(job_id=int(created_job.job_id), notebook_params=input_notebook_params)
+
+
+
 def dbx_connect():
     dbx = dict(host=os.getenv("DBX_HOST"),
                client_id=os.getenv("DBX_CLIENT_ID"),
                client_secret=os.getenv("DBX_CLIENT_SECRET"))
 
     w = WorkspaceClient(**dbx)
-    for catalog in w.catalogs.list():
-        console.print(catalog)
+    user_name = os.getenv("DBX_USERNAME")
+
+    data = Path("./Notebooks/TestNotebook.py").read_bytes()
+    notebook_path = f'/Workspace/Users/{user_name}/CopiedBook'
+    w.workspace.upload(path=notebook_path,
+                       content=data,
+                       format=ImportFormat.SOURCE,
+                       language=Language.PYTHON)
+
 
 def class_test() -> Credentials:
     new_creds = Credentials(user_name="test_user", password=SecretStr("test_password"))
@@ -303,7 +345,7 @@ async def main2() -> Any:
         print("Steps completed successfully")
 
 
-async def main() -> Any:
+def main3() -> None:
     # compress()
     mocky()
     return
@@ -322,6 +364,11 @@ async def main() -> Any:
     console.print(user2)
     # create_public_private_keys()
 
+
+async def main() -> Any:
+    dbx_connect()
+
+
 def handler(event: dict[str, Any], context: dict[str, Any]) -> dict[str, str] | CredentialsReply | str:
     try:
         console.print(event)
@@ -338,5 +385,6 @@ def handler(event: dict[str, Any], context: dict[str, Any]) -> dict[str, str] | 
         return f"Error: {str(e)}"
 
 if __name__ == '__main__':
-    asyncio.run(main2())
+    asyncio.run(main())
+    # asyncio.run(main2())
     # asyncio.run(handler({}, {}))
