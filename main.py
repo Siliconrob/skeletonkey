@@ -18,7 +18,7 @@ from unittest.mock import MagicMock, patch
 import databricks.sdk.service.iam as iam
 import snowflake.connector as sc
 from databricks.sdk import WorkspaceClient
-from databricks.sdk.service.jobs import JobRunAs
+from databricks.sdk.service.compute import WorkloadType, ClientsTypes
 from databricks.sdk.service.workspace import ImportFormat, Language
 from pydantic import SecretStr
 from rich.console import Console
@@ -33,7 +33,6 @@ from RecordTypes.Step import build_steps, StatusEntry
 from RecordTypes.StepImplementation import DoSomething, WriteFile
 from RecordTypes.TestContext import TestContext
 from RecordTypes.User import User as UserZ
-from databricks.sdk.service import jobs
 
 console = Console()
 
@@ -188,6 +187,11 @@ def get_user(cursor: SnowflakeCursor, cmd: str) -> UserZ:
 
 
 def certification_action() -> Tuple[UserZ, NewUserToken]:
+    # # %pip install snowflake-connector-python
+    # !git clone https://github.com/snowflakedb/snowflake-connector-python.git
+    # !python -m pip install -U pip setuptools wheel build
+    # !python -m build --wheel ./snowflake-connector-python/
+    # dbutils.library.restartPython()
 
     user_info = None
     token_info = None
@@ -259,7 +263,14 @@ def mocky() -> None:
     console.print(m.call_count)
 
 
-def run_job(w: WorkspaceClient) -> None:
+def run_job() -> None:
+
+    dbx = dict(host=os.getenv("DBX_HOST"),
+               client_id=os.getenv("DBX_CLIENT_ID"),
+               client_secret=os.getenv("DBX_CLIENT_SECRET"))
+
+    w = WorkspaceClient(**dbx)
+
     run_notebook_name = os.getenv("DBX_USERNAME")
     notebook_path = f'/Workspace/Users/{run_notebook_name}/TestNotebook'
 
@@ -267,29 +278,57 @@ def run_job(w: WorkspaceClient) -> None:
     message_details = json.dumps(dict(user_name="test_user", public_key=f"test_public_key"))
     input_notebook_params = dict(message=message_details)
 
+    latest = w.clusters.select_spark_version(latest=True, long_term_support=True)
+    # w.clusters.create(cluster_name=f"sdk-{time_ns()}")
+    cluster_name = f"sdk-{time_ns()}"
 
-
-    created_job = w.jobs.create(
-        name=f"sdk-{time_ns()}",
-        run_as=JobRunAs(user_name=run_notebook_name),
-        tasks=[
-            jobs.Task(
-                description="test",
-                # existing_cluster_id=cluster_id,
-                notebook_task=jobs.NotebookTask(
-                    notebook_path=notebook_path,
-                    base_parameters=defined_notebook_params),
-                task_key="test",
-                timeout_seconds=0,
-            )
-        ],
+    accepts_workloads = WorkloadType(clients=ClientsTypes(jobs=True))
+    clstr_no_wait = w.clusters.create(
+        cluster_name=cluster_name,
+        spark_version=latest,
+        workload_type=accepts_workloads,
+        # instance_pool_id=os.environ["TEST_INSTANCE_POOL_ID"],
+        autotermination_minutes=15,
+        num_workers=1,
     )
-    print(f'{created_job=}')
-    w.jobs.run_now_and_wait(job_id=int(created_job.job_id), notebook_params=input_notebook_params)
+    w.clusters.pin(cluster_id=clstr_no_wait.cluster_id)
+
+    _ = w.clusters.start(cluster_id=clstr_no_wait.cluster_id).result()
+
+    print(f'{clstr_no_wait=}')
+
+    # clstr_wait = w.clusters.create(
+    #     cluster_name=cluster_name,
+    #     spark_version=latest,
+    #     workload_type=accepts_workloads,
+    #     # instance_pool_id=os.environ["TEST_INSTANCE_POOL_ID"],
+    #     autotermination_minutes=15,
+    #     num_workers=1,
+    # ).result()
+    # print(f'{clstr_wait=}')
+
+    # created_job = w.jobs.create(
+    #     name=f"sdk-{time_ns()}",
+    #     run_as=JobRunAs(user_name=run_notebook_name),
+    #     tasks=[
+    #         jobs.Task(
+    #             description="test",
+    #             # existing_cluster_id=cluster_id,
+    #             notebook_task=jobs.NotebookTask(
+    #                 notebook_path=notebook_path,
+    #                 base_parameters=defined_notebook_params),
+    #             task_key="test",
+    #             timeout_seconds=0,
+    #         )
+    #     ],
+    # )
+    # print(f'{created_job=}')
+    # w.jobs.run_now_and_wait(job_id=int(created_job.job_id), notebook_params=input_notebook_params)
 
 
 
-def dbx_connect():
+
+def upload_notebook():
     dbx = dict(host=os.getenv("DBX_HOST"),
                client_id=os.getenv("DBX_CLIENT_ID"),
                client_secret=os.getenv("DBX_CLIENT_SECRET"))
@@ -367,8 +406,8 @@ def main3() -> None:
 
 
 async def main() -> Any:
-    dbx_connect()
-
+    # upload_notebook()
+    run_job()
 
 def handler(event: dict[str, Any], context: dict[str, Any]) -> dict[str, str] | CredentialsReply | str:
     try:
