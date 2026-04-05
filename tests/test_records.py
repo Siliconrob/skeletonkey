@@ -18,6 +18,7 @@ def test_credentials_input():
     assert str(creds.password) == '**********'
 
 
+@pytest.mark.skipif(IN_GITHUB_ACTIONS, reason="Test doesn't work in Github Actions.")
 def test_get_connect_params():
     z = get_connection_params()
     assert z.get("account") is not None
