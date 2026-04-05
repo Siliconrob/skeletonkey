@@ -17,4 +17,6 @@ class UserToken:
 
     def __post_init__(self):
         if self.mins_to_bypass_network_policy_requirement is not None:
-            self.mins_to_bypass_network_policy_requirement = int(self.mins_to_bypass_network_policy_requirement)
+            self.mins_to_bypass_network_policy_requirement = int(
+                self.mins_to_bypass_network_policy_requirement
+            )

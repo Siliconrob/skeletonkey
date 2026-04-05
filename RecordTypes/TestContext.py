@@ -7,38 +7,43 @@ from rich.console import Console
 
 console = Console()
 
-class Helper:
 
+class Helper:
     _options: dict[str, str | Any]
     _inputs: dict[str, str] = {}
 
-    def __init__(self, options: dict[str,  str | Any]):
+    def __init__(self, options: dict[str, str | Any]):
         self._options = options
 
     def echo_cmd(self) -> str:
-        return ",".join([f'{k=}{v=}' for k,v in self._inputs.items()])
+        return ",".join([f"{k=}{v=}" for k, v in self._inputs.items()])
 
     def dbx_client(self) -> WorkspaceClient:
         return WorkspaceClient(**self._options)  # type: ignore[arg-type]
 
+
 T = TypeVar("T")
 
-class TestContext:
 
+class TestContext:
     _options: dict[str, str | Any]
     dbx: WorkspaceClient
 
     @staticmethod
-    def get_dbx_value(dbx_client: WorkspaceClient,
-                      run_fn: Callable[[WorkspaceClient], T],
-                      default_value: T | None = None) -> T:
+    def get_dbx_value(
+        dbx_client: WorkspaceClient,
+        run_fn: Callable[[WorkspaceClient], T],
+        default_value: T | None = None,
+    ) -> T:
         @wraps(run_fn)
         def wrapper(*args, **kwargs):
             try:
                 return run_fn(*args, **kwargs)
             except Exception:
                 if default_value is not None:
-                    warnings.warn(f"Failed to get {wrapper.__name__} from Databricks. Using default value.")
+                    warnings.warn(
+                        f"Failed to get {wrapper.__name__} from Databricks. Using default value."
+                    )
                     return default_value
                 raise
 
@@ -48,7 +53,9 @@ class TestContext:
         self._options[new_cmd] = new_cmd
         return Helper(self._options)
 
-    def _create_dbx_client(self, input_options: dict[str, str | Any] | None = None) -> WorkspaceClient:
+    def _create_dbx_client(
+        self, input_options: dict[str, str | Any] | None = None
+    ) -> WorkspaceClient:
         if input_options is None:
             input_options = self._options
         return WorkspaceClient(**input_options)  # type: ignore[arg-type]

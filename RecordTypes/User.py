@@ -38,12 +38,18 @@ class User:
     has_workload_identity: bool | None = False
     is_from_organization_user: bool | None = False
 
-    def _parse_bool(self, property_name: str, parse_fn: Callable[[str], bool] = lambda x: x.lower() in ("true", "1")) -> None:
+    def _parse_bool(
+        self,
+        property_name: str,
+        parse_fn: Callable[[str], bool] = lambda x: x.lower() in ("true", "1"),
+    ) -> None:
         current_value = getattr(self, property_name, None)
         if current_value is not None:
             setattr(self, property_name, parse_fn(current_value))
 
-    def _parse_int(self, property_name: str, parse_fn: Callable[[str], int] = lambda x: int(x)) -> None:
+    def _parse_int(
+        self, property_name: str, parse_fn: Callable[[str], int] = lambda x: int(x)
+    ) -> None:
         current_value = getattr(self, property_name, None)
         if current_value is not None:
             setattr(self, property_name, parse_fn(current_value))
@@ -63,6 +69,6 @@ class User:
         self._parse_int("mins_to_bypass_mfa")
 
         if self.default_secondary_roles is not None:
-            self.default_secondary_roles = ast.literal_eval(self.default_secondary_roles)
-
-
+            self.default_secondary_roles = ast.literal_eval(
+                self.default_secondary_roles
+            )

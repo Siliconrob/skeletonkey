@@ -18,6 +18,7 @@ class StatusEntry:
     timestamp: datetime
     method: str = "unknown"
 
+
 @dataclass
 class StepArgs:
     run: dict[str, Any] = field(default_factory=dict)
@@ -26,7 +27,6 @@ class StepArgs:
 
 @dataclass
 class Step(ABC):
-
     # def __post_init__(self):
     #     self._status.append(StatusEntry(identifier=StepStatus.PENDING,
     #                                     method=self.run.__name__,
@@ -48,16 +48,14 @@ class Step(ABC):
     #     return '\n'.join(results)
 
     @abstractmethod
-    def perform_step(self, *args, **kwargs) -> StepArgs:
-        ...
+    def perform_step(self, *args, **kwargs) -> StepArgs: ...
 
     @abstractmethod
-    def undo_step(self,  *args, **kwargs) -> None:
-        ...
+    def undo_step(self, *args, **kwargs) -> None: ...
 
     def run(self, *args, **kwargs) -> Step | None:
         output = self.perform_step(*args, **kwargs)
-        self.args.undo= output.undo
+        self.args.undo = output.undo
         next_step = self.next()
         if next_step is None:
             return next_step
@@ -86,6 +84,6 @@ def build_steps(steps: list[Step]) -> Step:
         if i == 0:
             step.previous_step = None
         else:
-            step.previous_step = steps[i-1]
+            step.previous_step = steps[i - 1]
         step.next_step = steps[i + 1] if i < len(steps) - 1 else None
     return start

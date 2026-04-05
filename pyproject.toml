@@ -5,11 +5,14 @@ description = "Add your description here"
 requires-python = ">=3.14"
 dependencies = [
     "camel-converter==5.1.0",
+    "coverage>=7.13.5",
     "databricks-sdk==0.99.0",
     "httpx>=0.28.1",
     "mypy>=1.11",
     "pydantic>=2.12.5",
+    "pytest>=9.0.2",
     "python-dotenv==1.2.2",
     "rich==14.3.3",
+    "ruff>=0.15.9",
     "snowflake-connector-python>=4.3.0",
 ]
