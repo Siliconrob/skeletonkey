@@ -9,6 +9,7 @@ dependencies = [
     "databricks-sdk==0.99.0",
     "httpx>=0.28.1",
     "mypy>=1.11",
+    "orjson>=3.11.8",
     "pydantic>=2.12.5",
     "pytest>=9.0.2",
     "python-dotenv==1.2.2",

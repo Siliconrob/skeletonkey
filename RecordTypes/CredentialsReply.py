@@ -1,13 +1,12 @@
-import json
 
-from pydantic import ConfigDict, BaseModel
+from pydantic import ConfigDict, BaseModel, Field
 
 from RecordTypes.Credentials import Credentials
 from RecordTypes.Keys import Keys
 
 
 class CredentialsReply(BaseModel):
-    credentials: Credentials
+    credentials: Credentials # = Field(exclude=True, repr=False, json_schema_extra={"exclude": True})
     key_pair: Keys
 
     model_config = ConfigDict(frozen=True, extra="forbid", validate_assignment=True)

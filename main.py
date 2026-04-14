@@ -16,7 +16,9 @@ from typing import Any, TypeVar, Callable, Tuple
 from unittest.mock import MagicMock, patch
 
 import databricks.sdk.service.iam as iam
+import orjson
 import snowflake.connector as sc
+from camel_converter import to_camel
 from databricks.sdk import WorkspaceClient
 from databricks.sdk.service.compute import WorkloadType, ClientsTypes
 from databricks.sdk.service.workspace import ImportFormat, Language
@@ -343,7 +345,7 @@ def run_job() -> None:
         client_secret=os.getenv("DBX_CLIENT_SECRET"),
     )
 
-    w = WorkspaceClient(**dbx)
+    w = WorkspaceClient(**dbx)  # type: ignore[arg-type]
 
     run_notebook_name = os.getenv("DBX_USERNAME")
     notebook_path = f"/Workspace/Users/{run_notebook_name}/TestNotebook"
@@ -497,6 +499,15 @@ def handler(
         test_data = class_test()
         reply = CredentialsReply(credentials=test_data, key_pair=new_keys)
 
+        v = reply.model_dump_json(exclude={"key_pair"})
+        # v = reply.model_dump(exclude={"key_pair"})
+
+        r = to_camel(v)
+        console.print(r)
+
+        t = orjson.dumps(reply, default=lambda x: x.model_dump())
+        console.print(t)
+
         reply_text = str(reply)
         if event.get("showAllFields", False) is True:
             reply_text = repr(reply)
@@ -506,6 +517,7 @@ def handler(
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    # asyncio.run(main())
     # asyncio.run(main2())
     # asyncio.run(handler({}, {}))
+    handler({}, {})
