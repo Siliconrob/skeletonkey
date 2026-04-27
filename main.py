@@ -27,9 +27,9 @@ from rich.console import Console
 from snowflake.connector import SnowflakeConnection
 from snowflake.connector.cursor import SnowflakeCursor
 
-from RecordTypes.Credentials import Credentials
-from RecordTypes.CredentialsReply import CredentialsReply
-from RecordTypes.Keys import Keys
+from RecordTypes.Credentials import Credentials, CredentialsAlt
+from RecordTypes.CredentialsReply import CredentialsReply, CredentialsReplyAlt
+from RecordTypes.Keys import Keys, KeysAlt
 from RecordTypes.NewUserToken import NewUserToken
 from RecordTypes.Step import build_steps, StatusEntry
 from RecordTypes.StepImplementation import DoSomething, WriteFile
@@ -488,6 +488,20 @@ async def main() -> Any:
     # upload_notebook()
     run_job()
 
+def handler_alt(
+    event: dict[str, Any], context: dict[str, Any]
+) -> dict[str, str] | CredentialsReply | str:
+    try:
+        console.print(event)
+        console.print(context)
+        new_keys = create_public_private_keys()
+        new_creds = CredentialsAlt(user_name="test_user", password=SecretStr("test_password"))
+        reply = CredentialsReplyAlt(credentials=new_creds, key_pair=KeysAlt(public=new_keys.public, private=new_keys.private))
+        data = json.dumps(reply, default=lambda x: str(x))
+        return data
+    except Exception as e:
+        return f"Error: {str(e)}"
+
 
 def handler(
     event: dict[str, Any], context: dict[str, Any]
@@ -516,8 +530,18 @@ def handler(
         return f"Error: {str(e)}"
 
 
+def str_handler() -> None:
+    text = "//jjja;"
+    text = text.removesuffix("/").removeprefix("/")
+    print(text)
+
+
+
+
 if __name__ == "__main__":
+    # str_handler()
     # asyncio.run(main())
     # asyncio.run(main2())
     # asyncio.run(handler({}, {}))
-    handler({}, {})
+    handler_alt({}, {})
+    # handler({}, {})

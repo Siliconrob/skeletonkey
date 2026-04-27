@@ -1,6 +1,13 @@
+import dataclasses
 import json
 
 from pydantic import SecretStr, BaseModel, ConfigDict, field_serializer
+
+
+@dataclasses.dataclass(frozen=True)
+class CredentialsAlt:
+    user_name: str
+    password: SecretStr
 
 
 class Credentials(BaseModel):

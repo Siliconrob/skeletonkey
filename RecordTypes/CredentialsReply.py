@@ -1,9 +1,15 @@
+import dataclasses
 
 from pydantic import ConfigDict, BaseModel, Field
 
-from RecordTypes.Credentials import Credentials
-from RecordTypes.Keys import Keys
+from RecordTypes.Credentials import Credentials, CredentialsAlt
+from RecordTypes.Keys import Keys, KeysAlt
 
+
+@dataclasses.dataclass(frozen=True)
+class CredentialsReplyAlt:
+    credentials: CredentialsAlt
+    key_pair: KeysAlt
 
 class CredentialsReply(BaseModel):
     credentials: Credentials # = Field(exclude=True, repr=False, json_schema_extra={"exclude": True})

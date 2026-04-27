@@ -1,5 +1,12 @@
+import dataclasses
+
 from pydantic import BaseModel, SecretStr, ConfigDict, field_serializer
 
+
+@dataclasses.dataclass(frozen=True)
+class KeysAlt:
+    private: SecretStr
+    public: str
 
 class Keys(BaseModel):
     private: SecretStr
