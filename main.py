@@ -15,7 +15,19 @@ def handler(event: dict[str, Any], context: dict[str, Any]) -> Any:
 
 
 if __name__ == "__main__":
-    str_handler()
+    # str_handler()
+
+    event = {
+    "cmd": "databricks",
+    "subCommand": "help",
+    "args": {
+        "showAll": True,
+        "userId": None
+    }
+}
+
+    z = handler(event, {})
+    print(f'{z=}')
     # asyncio.run(str_handler())
     # asyncio.run(main2())
     # asyncio.run(handler({}, {}))
