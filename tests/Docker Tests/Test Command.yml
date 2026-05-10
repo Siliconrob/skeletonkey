@@ -1,0 +1,21 @@
+info:
+  name: Test Command
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: http://localhost:9000/2015-03-31/functions/function/invocations
+  body:
+    type: json
+    data: |-
+      {
+          "cmd": {{command}}
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
