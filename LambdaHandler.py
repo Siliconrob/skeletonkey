@@ -21,6 +21,4 @@ class CommandEvent:
 
 def run_fn(event: dict[str, Any], context: dict[str, Any]) -> Any:
     print(f'{event=}')
-    converted = dict_to_snake(event)
-    text = json.dumps(converted)
-    return CommandEvent(**json.loads(text))
+    return CommandEvent(**json.loads(json.dumps(dict_to_snake(event))))
